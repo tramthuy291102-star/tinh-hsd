@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Máy Tính HSD - Thùy Trâm</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+  
+  * { box-sizing: border-box; touch-action: manipulation; }
+  body { 
+    font-family: 'Nunito', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+    background: #eef7f0; 
+    padding: 15px; 
+    margin: 0; 
+    display: flex; 
+    flex-direction: column; 
+    height: 100vh;
+    color: #44594a;
+  }
+  .card { 
+    background: #ffffff; 
+    padding: 15px; 
+    border-radius: 24px; 
+    margin-bottom: 5px; 
+    box-shadow: 0 8px 24px rgba(105, 179, 131, 0.15); 
+    border: 2px solid #d4edd9;
+  }
+  
+  .today-container { text-align: center; margin-bottom: 12px; min-height: 28px;}
+  .today-text { 
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    padding: 6px 16px; background: #d4edd9; 
+    color: #3b8754; border-radius: 25px; font-size: 14px; font-weight: 800; 
+    cursor: pointer; transition: 0.2s; box-shadow: 0 2px 8px rgba(59, 135, 84, 0.1);
+  }
+  .today-text:active { background: #bce3c4; transform: scale(0.97); }
+
+  .input-group { margin-bottom: 12px; }
+  .label { font-weight: 900; margin-bottom: 6px; font-size: 15px; color: #3b8754; display: flex; align-items: center; gap: 5px;}
+  
+  .date-inputs, .duration-inputs { display: flex; gap: 8px; }
+  .box { 
+    flex: 1; 
+    border: 2px dashed #bce3c4; 
+    padding: 8px; 
+    text-align: center; 
+    border-radius: 14px; 
+    font-size: 18px; 
+    font-weight: 800;
+    min-height: 46px; 
+    color: #2c663b; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f7fdf8;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .box.active { border: 2px solid #5ab078; background: #d4edd9; box-shadow: 0 0 10px rgba(90, 176, 120, 0.3); transform: translateY(-2px);}
+  .box:empty::before { content: attr(data-placeholder); color: #9bbfa5; font-weight: 700; font-size: 13px; }
+  
+  .toggle-group { display: flex; gap: 8px; margin-bottom: 10px; }
+  .toggle-btn { 
+    flex: 1; padding: 10px; text-align: center; border-radius: 14px; 
+    border: 2px solid #5ab078; color: #5ab078; font-size: 13px; font-weight: 800; transition: 0.2s;
+    background: white;
+  }
+  .toggle-btn.active { background: #5ab078; color: white; box-shadow: 0 4px 12px rgba(90, 176, 120, 0.35);}
+
+  .unit-btn { 
+    padding: 10px; border: 2px solid #bce3c4; border-radius: 14px; font-size: 14px; font-weight: 800; flex: 1; text-align: center; color: #5ab078; background: white; transition: 0.2s;
+  }
+  .unit-btn.active { background: #5ab078; color: white; border-color: #5ab078; box-shadow: 0 4px 12px rgba(90, 176, 120, 0.35);}
+  
+  /* Keyboard */
+  .keyboard { 
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; 
+    margin-top: auto; padding-bottom: 10px; 
+  }
+  .key { 
+    background: #ffffff; border: 2px solid #eef7f0; border-radius: 16px; padding: 12px; 
+    font-size: 20px; font-weight: 800; box-shadow: 0 3px 10px rgba(105, 179, 131, 0.1); color: #44594a; 
+    transition: 0.1s; font-family: 'Nunito', sans-serif;
+  }
+  .key:active { background: #d4edd9; transform: translateY(3px); box-shadow: 0 0px 2px rgba(105, 179, 131, 0.1);}
+  .key.action { background: #fff5f5; border-color: #ffe0e0; font-size: 16px; color: #ff6b6b; }
+  .key.action:active { background: #ffe0e0; }
+  .key.next { background: #e0f2fe; border-color: #bae6fd; font-size: 16px; color: #0284c7; }
+  .key.next:active { background: #bae6fd; }
+  .key.calc { background: #5ab078; border-color: #5ab078; color: white; font-size: 18px; box-shadow: 0 4px 12px rgba(90, 176, 120, 0.4);}
+  .key.calc:active { background: #4a9965; transform: translateY(3px); }
+  
+  #result { text-align: center; font-size: 15px; font-weight: 800; padding: 12px; margin-top: 8px; border-radius: 14px; line-height: 1.4; border: 2px dashed transparent;}
+  .ok { color: #2c663b; background: #d4edd9; border-color: #5ab078 !important;}
+  .warn { color: #d97706; background: #fef3c7; border-color: #f59e0b !important;}
+  .danger { color: #e11d48; background: #ffe4e6; border-color: #fb7185 !important;}
+  .neutral { color: #64748b; background: #f1f5f9; border-color: #cbd5e1 !important;}
+
+  .signature {
+    text-align: center;
+    font-family: 'Nunito', sans-serif;
+    font-size: 16px;
+    font-weight: 900;
+    color: #5ab078;
+    margin-top: 6px;
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+    text-shadow: 1px 1px 0px #fff;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <!-- Mốc Hôm Nay -->
+  <div class="today-container">
+    <div class="today-text" id="todayText" onclick="toggleEditToday()">
+      📅 Mốc tính: --/--/---- ✏️
+    </div>
+    <div class="date-inputs" id="today_edit_view" style="display: none; padding-bottom: 5px;">
+      <div class="box" id="today_d" onclick="setActive('today_d')" data-placeholder="Ngày"></div>
+      <div class="box" id="today_m" onclick="setActive('today_m')" data-placeholder="Tháng"></div>
+      <div class="box" id="today_y" onclick="setActive('today_y')" data-placeholder="Năm"></div>
+    </div>
+  </div>
+  
+  <div class="input-group">
+    <div class="label">🌱 Ngày Sản Xuất (NSX)</div>
+    <div class="date-inputs">
+      <div class="box active" id="nsx_d" onclick="setActive('nsx_d')" data-placeholder="Ngày"></div>
+      <div class="box" id="nsx_m" onclick="setActive('nsx_m')" data-placeholder="Tháng"></div>
+      <div class="box" id="nsx_y" onclick="setActive('nsx_y')" data-placeholder="Năm"></div>
+    </div>
+  </div>
+
+  <div class="input-group" style="margin-bottom: 2px;">
+    <div class="toggle-group">
+      <div class="toggle-btn active" id="mode_date" onclick="setMode('date')">🌸 Nhập ngày HSD</div>
+      <div class="toggle-btn" id="mode_duration" onclick="setMode('duration')">⏳ Nhập thời hạn</div>
+    </div>
+
+    <!-- Mode: Date -->
+    <div class="date-inputs" id="hsd_date_view">
+      <div class="box" id="hsd_d" onclick="setActive('hsd_d')" data-placeholder="Ngày"></div>
+      <div class="box" id="hsd_m" onclick="setActive('hsd_m')" data-placeholder="Tháng"></div>
+      <div class="box" id="hsd_y" onclick="setActive('hsd_y')" data-placeholder="Năm"></div>
+    </div>
+    
+    <!-- Mode: Duration -->
+    <div class="duration-inputs" id="hsd_duration_view" style="display: none;">
+      <div class="box" id="dur_val" onclick="setActive('dur_val')" data-placeholder="Số lượng" style="flex: 2;"></div>
+      <div class="unit-btn active" id="unit_day" onclick="setUnit('day')">Ngày</div>
+      <div class="unit-btn" id="unit_month" onclick="setUnit('month')">Tháng</div>
+    </div>
+  </div>
+  
+  <div id="result" class="neutral">Nhập số xong bấm TÍNH nào... ✨</div>
+</div>
+
+<div class="signature">✨ Made by Thùy Trâm ✨</div>
+
+<!-- Numpad -->
+<div class="keyboard">
+  <button class="key" onclick="press('1')">1</button>
+  <button class="key" onclick="press('2')">2</button>
+  <button class="key" onclick="press('3')">3</button>
+  <button class="key" onclick="press('4')">4</button>
+  <button class="key" onclick="press('5')">5</button>
+  <button class="key" onclick="press('6')">6</button>
+  <button class="key" onclick="press('7')">7</button>
+  <button class="key" onclick="press('8')">8</button>
+  <button class="key" onclick="press('9')">9</button>
+  <button class="key action" onclick="press('del')">Xóa</button>
+  <button class="key" onclick="press('0')">0</button>
+  <button class="key next" onclick="press('next')">Tiếp ➡️</button>
+  <button class="key calc" onclick="calculate()" style="grid-column: span 3;">TÍNH 💚</button>
+</div>
+
+<script>
+  let activeBox = 'nsx_d';
+  let mode = 'date';
+  let unit = 'day';
+
+  let t = new Date();
+  let td = t.getDate().toString().padStart(2, '0');
+  let tm = (t.getMonth()+1).toString().padStart(2, '0');
+  let ty = t.getFullYear().toString();
+  
+  document.getElementById('today_d').innerText = td;
+  document.getElementById('today_m').innerText = tm;
+  document.getElementById('today_y').innerText = ty;
+  document.getElementById('todayText').innerHTML = `📅 Mốc tính: ${td}/${tm}/${ty} ✏️`;
+
+  function toggleEditToday() {
+    document.getElementById('todayText').style.display = 'none';
+    document.getElementById('today_edit_view').style.display = 'flex';
+    setActive('today_d');
+  }
+
+  function setActive(id) {
+    document.querySelectorAll('.box').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    activeBox = id;
+  }
+
+  function setMode(m) {
+    mode = m;
+    document.getElementById('mode_date').classList.remove('active');
+    document.getElementById('mode_duration').classList.remove('active');
+    document.getElementById('mode_'+m).classList.add('active');
+    
+    if (m === 'date') {
+      document.getElementById('hsd_date_view').style.display = 'flex';
+      document.getElementById('hsd_duration_view').style.display = 'none';
+      setActive('hsd_d');
+    } else {
+      document.getElementById('hsd_date_view').style.display = 'none';
+      document.getElementById('hsd_duration_view').style.display = 'flex';
+      setActive('dur_val');
+    }
+  }
+
+  function setUnit(u) {
+    unit = u;
+    document.getElementById('unit_day').classList.remove('active');
+    document.getElementById('unit_month').classList.remove('active');
+    document.getElementById('unit_'+u).classList.add('active');
+  }
+
+  function press(val) {
+    if (val === 'next') {
+      moveToNextBox();
+      return;
+    }
+
+    let box = document.getElementById(activeBox);
+    if (val === 'del') {
+      box.innerText = box.innerText.slice(0, -1);
+    } else {
+      let maxLen = (activeBox.endsWith('_y') || activeBox === 'dur_val') ? 4 : 2;
+      if (box.innerText.length < maxLen) {
+        box.innerText += val;
+      }
+      if (box.innerText.length === maxLen && activeBox !== 'dur_val') {
+         moveToNextBox();
+      }
+    }
+  }
+
+  function moveToNextBox() {
+     let sequence = [];
+     let isTodayVisible = document.getElementById('today_edit_view').style.display === 'flex';
+     
+     if (isTodayVisible && (activeBox.startsWith('today'))) {
+         sequence = ['today_d', 'today_m', 'today_y', 'nsx_d', 'nsx_m', 'nsx_y'];
+     } else if (mode === 'date') {
+         sequence = ['nsx_d', 'nsx_m', 'nsx_y', 'hsd_d', 'hsd_m', 'hsd_y'];
+     } else {
+         sequence = ['nsx_d', 'nsx_m', 'nsx_y', 'dur_val'];
+     }
+     
+     let idx = sequence.indexOf(activeBox);
+     if (idx !== -1 && idx < sequence.length - 1) {
+         setActive(sequence[idx+1]);
+     }
+  }
+
+  function parseMyDate(d, m, y) {
+    let dv = parseInt(d), mv = parseInt(m) - 1, yv = parseInt(y);
+    if (isNaN(dv) || isNaN(mv) || isNaN(yv)) return null;
+    if (yv < 100) yv += 2000;
+    return new Date(yv, mv, dv);
+  }
+
+  function calculate() {
+    let nsx = parseMyDate(
+      document.getElementById('nsx_d').innerText,
+      document.getElementById('nsx_m').innerText,
+      document.getElementById('nsx_y').innerText
+    );
+    if (!nsx) {
+      showResult("Nhập đủ Ngày Sản Xuất nha! 🥺", "danger"); return;
+    }
+
+    let hsd = null;
+    if (mode === 'date') {
+      hsd = parseMyDate(
+        document.getElementById('hsd_d').innerText,
+        document.getElementById('hsd_m').innerText,
+        document.getElementById('hsd_y').innerText
+      );
+    } else {
+      let dur = parseInt(document.getElementById('dur_val').innerText);
+      if (isNaN(dur)) {
+         showResult("Chưa nhập số thời hạn kìa! 🥺", "danger"); return;
+      }
+      hsd = new Date(nsx.getTime());
+      if (unit === 'day') hsd.setDate(hsd.getDate() + dur);
+      else hsd.setMonth(hsd.getMonth() + dur);
+    }
+    if (!hsd) {
+      showResult("Nhập đủ Hạn Sử Dụng nha! 🥺", "danger"); return;
+    }
+
+    let todayDate = parseMyDate(
+      document.getElementById('today_d').innerText,
+      document.getElementById('today_m').innerText,
+      document.getElementById('today_y').innerText
+    );
+    if (!todayDate) {
+      showResult("Kiểm tra lại Mốc Thời Gian xíu nhé! 🥺", "danger"); return;
+    }
+
+    todayDate.setHours(0,0,0,0);
+    nsx.setHours(0,0,0,0);
+    hsd.setHours(0,0,0,0);
+
+    let totalTime = hsd.getTime() - nsx.getTime();
+    let remainingTime = hsd.getTime() - todayDate.getTime();
+
+    if (totalTime <= 0) {
+       showResult("Hình như HSD đang nhỏ hơn NSX nè! 🤔", "danger");
+       return;
+    }
+
+    let percent = (remainingTime / totalTime) * 100;
+    let remainingDays = Math.round(remainingTime / (1000 * 60 * 60 * 24));
+    
+    let formattedHSD = `${hsd.getDate().toString().padStart(2,'0')}/${(hsd.getMonth()+1).toString().padStart(2,'0')}/${hsd.getFullYear()}`;
+    
+    if (percent < 0) {
+       let expiredDays = Math.abs(remainingDays);
+       showResult(`❌ ĐÃ QUÁ HẠN ${expiredDays} NGÀY RỒI!<br><span style="font-size:13px; font-weight:700;">(Đã hết hạn vào: ${formattedHSD})</span>`, "danger");
+    } else {
+       let typeClass = percent > 30 ? 'ok' : 'warn';
+       let icon = percent > 30 ? '✅' : '⚠️';
+       showResult(`${icon} Còn lại: ${percent.toFixed(1)}% (${remainingDays} ngày)<br><span style="font-size:13px; font-weight:700;">(Tính đến ngày bạn chọn, HSD là ${formattedHSD})</span>`, typeClass);
+    }
+  }
+
+  function showResult(msg, type) {
+     let r = document.getElementById('result');
+     r.innerHTML = msg;
+     r.className = type;
+  }
+</script>
+</body>
+</html>
