@@ -227,6 +227,7 @@
     document.getElementById('unit_'+u).classList.add('active');
   }
 
+  // Strict validation rules for real-time typing
   function press(val) {
     if (val === 'next') {
       moveToNextBox();
@@ -236,14 +237,47 @@
     let box = document.getElementById(activeBox);
     if (val === 'del') {
       box.innerText = box.innerText.slice(0, -1);
-    } else {
-      let maxLen = (activeBox.endsWith('_y') || activeBox === 'dur_val') ? 4 : 2;
-      if (box.innerText.length < maxLen) {
-        box.innerText += val;
+      return;
+    }
+
+    let currentVal = box.innerText;
+    let nextVal = currentVal + val;
+    let isYear = activeBox.endsWith('_y');
+    let isMonth = activeBox.endsWith('_m');
+    let isDay = activeBox.endsWith('_d');
+
+    if (isMonth) {
+      let mNum = parseInt(nextVal);
+      // Month must be 01-12. If user types e.g. '9', it's okay if next could be valid, but if first digit is > 1, invalid. 
+      // If length is 1 and digit > 1 (like 2-9), it can't be a valid month unless prefixed with 0, or we can restrict: first digit > 1 is invalid for month.
+      if (currentVal === '' && parseInt(val) > 1) {
+        // Automatically prepend '0' if they type 2-9 for month? Or block? Let's block or auto-format. Better yet, block invalid values:
+        // Month max is 12.
       }
-      if (box.innerText.length === maxLen && activeBox !== 'dur_val') {
-         moveToNextBox();
-      }
+      if (mNum > 12) return; // Ignore input if > 12
+    }
+
+    if (isDay) {
+      let dNum = parseInt(nextVal);
+      if (dNum > 31) return; // Day max is 31
+    }
+
+    let maxLen = isYear ? 4 : (isMonth || isDay ? 2 : (activeBox === 'dur_val' ? 5 : 2));
+    if (currentVal.length < maxLen) {
+      box.innerText = nextVal;
+    }
+
+    // Auto move to next box when filled max length
+    if (box.innerText.length === maxLen && activeBox !== 'dur_val') {
+       // Extra safety check for month when 2 digits are filled
+       if (isMonth) {
+         let m = parseInt(box.innerText);
+         if (m < 1 || m > 12) {
+           box.innerText = '';
+           return;
+         }
+       }
+       moveToNextBox();
     }
   }
 
@@ -266,10 +300,20 @@
   }
 
   function parseMyDate(d, m, y) {
-    let dv = parseInt(d), mv = parseInt(m) - 1, yv = parseInt(y);
+    let dv = parseInt(d), mv = parseInt(m), yv = parseInt(y);
     if (isNaN(dv) || isNaN(mv) || isNaN(yv)) return null;
     if (yv < 100) yv += 2000;
-    return new Date(yv, mv, dv);
+    
+    // Strict calendar check
+    if (mv < 1 || mv > 12) return null;
+    if (dv < 1 || dv > 31) return null;
+    
+    let dateObj = new Date(yv, mv - 1, dv);
+    // Check if JS Date rolled over (e.g., Feb 31 becomes March 3)
+    if (dateObj.getFullYear() !== yv || dateObj.getMonth() !== mv - 1 || dateObj.getDate() !== dv) {
+      return null;
+    }
+    return dateObj;
   }
 
   function calculate() {
@@ -279,7 +323,7 @@
       document.getElementById('nsx_y').innerText
     );
     if (!nsx) {
-      showResult("Nhập đủ Ngày Sản Xuất nha! 🥺", "danger"); return;
+      showResult("Ngày Sản Xuất không hợp lệ (ví dụ: ngày quá 31 hoặc tháng quá 12)! 🥺", "danger"); return;
     }
 
     let hsd = null;
@@ -289,17 +333,24 @@
         document.getElementById('hsd_m').innerText,
         document.getElementById('hsd_y').innerText
       );
+      if (!hsd) {
+        showResult("Hạn Sử Dụng không hợp lệ! 🥺", "danger"); return;
+      }
     } else {
       let dur = parseInt(document.getElementById('dur_val').innerText);
-      if (isNaN(dur)) {
-         showResult("Chưa nhập số thời hạn kìa! 🥺", "danger"); return;
+      if (isNaN(dur) || dur < 0) {
+         showResult("Chưa nhập số thời hạn hợp lệ kìa! 🥺", "danger"); return;
       }
       hsd = new Date(nsx.getTime());
-      if (unit === 'day') hsd.setDate(hsd.getDate() + dur);
-      else hsd.setMonth(hsd.getMonth() + dur);
-    }
-    if (!hsd) {
-      showResult("Nhập đủ Hạn Sử Dụng nha! 🥺", "danger"); return;
+      if (unit === 'day') {
+        // Nếu cộng ngày, ví dụ cộng 1 ngày từ NSX thì HSD = NSX + 1 ngày. Nhưng vì tính luôn NSX là 1 ngày SD, 
+        // nên nếu thời hạn là X ngày, ngày cuối cùng sẽ là NSX + (X - 1) ngày.
+        hsd.setDate(hsd.getDate() + dur - 1);
+      } else {
+        hsd.setMonth(hsd.getMonth() + dur);
+        // Trừ đi 1 ngày vì tính nguyên vẹn tháng/ngày có tính ngày NSX
+        hsd.setDate(hsd.getDate() - 1);
+      }
     }
 
     let todayDate = parseMyDate(
@@ -308,33 +359,36 @@
       document.getElementById('today_y').innerText
     );
     if (!todayDate) {
-      showResult("Kiểm tra lại Mốc Thời Gian xíu nhé! 🥺", "danger"); return;
+      showResult("Mốc thời gian tính không hợp lệ! 🥺", "danger"); return;
     }
 
     todayDate.setHours(0,0,0,0);
     nsx.setHours(0,0,0,0);
     hsd.setHours(0,0,0,0);
 
-    let totalTime = hsd.getTime() - nsx.getTime();
-    let remainingTime = hsd.getTime() - todayDate.getTime();
+    // Tính luôn ngày NSX là 1 ngày sử dụng -> Tổng số ngày = (HSD - NSX) + 1
+    let diffTime = hsd.getTime() - nsx.getTime();
+    let totalDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
-    if (totalTime <= 0) {
+    if (totalDays <= 0) {
        showResult("Hình như HSD đang nhỏ hơn NSX nè! 🤔", "danger");
        return;
     }
 
-    let percent = (remainingTime / totalTime) * 100;
-    let remainingDays = Math.round(remainingTime / (1000 * 60 * 60 * 24));
+    let remainingTime = hsd.getTime() - todayDate.getTime();
+    let remainingDays = Math.round(remainingTime / (1000 * 60 * 60 * 24)) + 1;
+
+    let percent = (remainingDays / totalDays) * 100;
     
     let formattedHSD = `${hsd.getDate().toString().padStart(2,'0')}/${(hsd.getMonth()+1).toString().padStart(2,'0')}/${hsd.getFullYear()}`;
     
-    if (percent < 0) {
-       let expiredDays = Math.abs(remainingDays);
-       showResult(`❌ ĐÃ QUÁ HẠN ${expiredDays} NGÀY RỒI!<br><span style="font-size:13px; font-weight:700;">(Đã hết hạn vào: ${formattedHSD})</span>`, "danger");
+    if (percent <= 0 || remainingDays <= 0) {
+       let expiredDays = Math.abs(remainingDays - 1);
+       showResult(`❌ ĐÃ QUÁ HẠN RỒI!<br><span style="font-size:13px; font-weight:700;">(Đã hết hạn vào: ${formattedHSD})</span>`, "danger");
     } else {
        let typeClass = percent > 30 ? 'ok' : 'warn';
        let icon = percent > 30 ? '✅' : '⚠️';
-       showResult(`${icon} Còn lại: ${percent.toFixed(1)}% (${remainingDays} ngày)<br><span style="font-size:13px; font-weight:700;">(Tính đến ngày bạn chọn, HSD là ${formattedHSD})</span>`, typeClass);
+       showResult(`${icon} Còn lại: ${percent.toFixed(1)}% (~${remainingDays} ngày)<br><span style="font-size:13px; font-weight:700;">(Tính luôn ngày NSX, HSD là ${formattedHSD})</span>`, typeClass);
     }
   }
 
